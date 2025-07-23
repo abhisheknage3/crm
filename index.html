@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BN Media Quotation Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Montserrat', sans-serif;
+      }
+    </style>
+  </head>
+  <body class="bg-main min-h-screen flex items-center justify-center p-4 font-mont">
+    <div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-2xl border border-gray-300">
+      <div class="flex flex-col items-center justify-center mb-6 text-center">
+        <img src="image.png" alt="BN Media Logo" class="h-16 mb-2" onerror="this.style.display='none'">
+        <h1 class="text-3xl font-bold"><span style="color: #e11d48">BN</span><span style="color: #000000"> Media</span> Quotation</h1>
+        <p class="text-sm text-gray-600">Mothi Umari, Akola | 📞 8767587595</p>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 mb-4">
+        <div>
+          <label class="block text-sm font-semibold text-primary mb-1">Customer Name</label>
+          <input type="text" id="customerName" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent" placeholder="Enter customer name" />
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-primary mb-1">Mobile Number</label>
+          <input type="tel" id="mobileNumber" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent" placeholder="Enter mobile number" />
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-primary mb-1">Coupon Code</label>
+          <input type="text" id="couponCodeInput" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent" placeholder="Enter coupon code (e.g. BN10)" />
+        </div>
+      </div>
+
+      <h2 class="text-xl font-bold text-accent mb-3">Select Packages</h2>
+      <div class="grid grid-cols-1 gap-3 mb-6" id="serviceList"></div>
+
+      <h2 class="text-lg font-semibold text-primary mb-2">Quotation Summary</h2>
+      <div id="selectedServices" class="text-sm text-gray-700 mb-2 space-y-1"></div>
+      <div class="text-sm mb-1">Subtotal: ₹<span id="subtotal">0</span></div>
+      <div class="text-sm mb-1">Discount: ₹<span id="discountAmount">0</span></div>
+      <div class="text-lg font-bold text-accent mb-6">Total: ₹<span id="totalPrice">0</span></div>
+
+      <div class="flex flex-col gap-3 sm:flex-row">
+        <button id="downloadPdf" class="w-full sm:w-1/2 bg-red-600 text-white py-3 rounded-lg font-semibold shadow-md hover:bg-red-700 transition">Download PDF</button>
+        <button id="exportExcel" class="w-full sm:w-1/2 bg-green-600 text-white py-3 rounded-lg font-semibold shadow-md hover:bg-green-700 transition">Export Excel</button>
+      </div>
+    </div>
+
+    <script>
+      const servicesList = [
+        { name: "1. Digital Start (₹3,999/month)", price: 3999, details: "SMM management, GMB setup, Basic SEO" },
+        { name: "2. Growth Booster (₹6,999/month)", price: 6999, details: "SMM with ads boosting, advanced SEO, GMB optimization" },
+        { name: "3. Brand Dominator (₹10,999/month)", price: 10999, details: "Full SMM, premium ads budget, GMB premium, advanced SEO" },
+        { name: "4. Web Lite (1 Page Website)", price: 6000, details: "Single page portfolio site" },
+        { name: "5. Web Pro (5 Page Website)", price: 13000, details: "Multi-page business site" },
+        { name: "6. Web Store (E-commerce Website)", price: 25000, details: "Online store with payment gateway" }
+      ];
+
+      const serviceContainer = document.getElementById("serviceList");
+      const selectedServicesDiv = document.getElementById("selectedServices");
+      const totalPriceSpan = document.getElementById("totalPrice");
+      const discountAmountSpan = document.getElementById("discountAmount");
+      const subtotalSpan = document.getElementById("subtotal");
+      const couponCodeInput = document.getElementById("couponCodeInput");
+
+      const downloadPdfButton = document.getElementById("downloadPdf");
+      const exportExcelButton = document.getElementById("exportExcel");
+
+      const customerNameInput = document.getElementById("customerName");
+      const mobileNumberInput = document.getElementById("mobileNumber");
+
+      function renderServices() {
+        servicesList.forEach((service, index) => {
+          const label = document.createElement("label");
+          label.className = "flex flex-col bg-box p-3 rounded-lg shadow-sm hover:bg-white transition";
+          label.innerHTML = `
+            <div class="flex justify-between items-center">
+              <span>
+                <input type="checkbox" id="service-${index}" class="service-checkbox mr-2 accent-accent" data-name="${service.name}" data-price="${service.price}" data-details="${service.details}">
+                <label for="service-${index}" class="font-semibold">${service.name}</label>
+              </span>
+              <span class="font-medium text-gray-700">₹${service.price.toLocaleString()}</span>
+            </div>
+            <p class="text-gray-500 text-sm ml-6 mt-1">${service.details}</p>
+          `;
+          serviceContainer.appendChild(label);
+        });
+
+        document.querySelectorAll('.service-checkbox').forEach(cb => {
+          cb.addEventListener('change', updateSummary);
+        });
+        couponCodeInput.addEventListener('input', updateSummary);
+      }
+
+      function updateSummary() {
+        let subtotal = 0;
+        let selectedServices = [];
+
+        document.querySelectorAll('.service-checkbox:checked').forEach(service => {
+          const name = service.dataset.name;
+          const price = parseInt(service.dataset.price);
+          const details = service.dataset.details;
+          selectedServices.push({ name, price, details });
+          subtotal += price;
+        });
+
+        let discountPercent = 0;
+        const couponCode = couponCodeInput.value.trim().toUpperCase();
+        if (couponCode === "BN10") {
+          discountPercent = 10;
+        } else if (couponCode === "BN20") {
+          discountPercent = 20;
+        }
+
+        const discountAmt = subtotal * (discountPercent / 100);
+        const total = subtotal - discountAmt;
+
+        selectedServicesDiv.innerHTML = selectedServices.length
+          ? selectedServices.map(s => `<div><strong>${s.name}</strong><br><span class="text-gray-500 text-sm">${s.details}</span><br>Price: ₹${s.price.toLocaleString()}</div>`).join('')
+          : '<div class="italic text-gray-400">No services selected</div>';
+
+        subtotalSpan.textContent = subtotal.toLocaleString();
+        discountAmountSpan.textContent = discountAmt.toFixed(0);
+        totalPriceSpan.textContent = total.toLocaleString();
+
+        return { selectedServices, subtotal, discountAmt, total };
+      }
+
+      downloadPdfButton.addEventListener("click", () => {
+        const name = customerNameInput.value.trim();
+        const phone = mobileNumberInput.value.trim();
+        if (!name || !phone) {
+          alert("Please enter both customer name and mobile number.");
+          return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const { selectedServices, subtotal, discountAmt, total } = updateSummary();
+
+        doc.setFontSize(18);
+        doc.setTextColor(225, 29, 72);
+        doc.text("BN", 105, 20, { align: "center" });
+        doc.setTextColor(0, 0, 0);
+        doc.text(" Media Quotation", 125, 20);
+        doc.setFontSize(10);
+        doc.text("Mothi Umari, Akola | 📞 8767587595", 105, 28, { align: "center" });
+        doc.setFontSize(12);
+        doc.text(`Date: ${new Date().toLocaleDateString()}`, 150, 40);
+        doc.text(`Customer: ${name}`, 20, 50);
+        doc.text(`Mobile: ${phone}`, 20, 58);
+
+        doc.autoTable({
+          startY: 70,
+          head: [["No.", "Service Name", "Details", "Price (₹)"]],
+          body: selectedServices.map((s, i) => [i + 1, s.name, s.details, s.price.toLocaleString()])
+        });
+
+        const summaryY = doc.lastAutoTable.finalY + 10;
+        doc.text(`Subtotal: ₹${subtotal.toLocaleString()}`, 20, summaryY);
+        doc.text(`Discount: ₹${discountAmt.toFixed(0)}`, 20, summaryY + 8);
+        doc.text(`Total: ₹${total.toLocaleString()}`, 20, summaryY + 16);
+
+        doc.addImage("sign.jpeg", "JPEG", 150, summaryY + 25, 40, 15);
+        doc.setFontSize(10);
+        doc.text("Authorized Signatory", 150, summaryY + 42);
+
+        doc.setFontSize(9);
+        doc.text("Terms & Conditions:", 20, summaryY + 55);
+        doc.text("1. Services delivered as per BN Media standards.", 20, summaryY + 60);
+        doc.text("2. 50% advance payment required.", 20, summaryY + 65);
+        doc.text("3. Quotation valid for 15 days.", 20, summaryY + 70);
+        doc.text("4. Third-party charges billed separately.", 20, summaryY + 75);
+        doc.text("5. Support as per agreement.", 20, summaryY + 80);
+
+        doc.save(`BNMedia_Quotation_${name.replace(/\s+/g, '_')}.pdf`);
+      });
+
+      exportExcelButton.addEventListener("click", () => {
+        const name = customerNameInput.value.trim();
+        const phone = mobileNumberInput.value.trim();
+        if (!name || !phone) {
+          alert("Please enter both customer name and mobile number.");
+          return;
+        }
+
+        const { selectedServices, subtotal, discountAmt, total } = updateSummary();
+
+        const data = [
+          ["Customer Name", name],
+          ["Mobile Number", phone],
+          ["Date", new Date().toLocaleDateString()],
+          [""],
+          ["No.", "Service Name", "Details", "Price"]
+        ];
+
+        selectedServices.forEach((s, i) => data.push([i + 1, s.name, s.details, `₹${s.price.toLocaleString()}`]));
+
+        data.push([""], ["Subtotal", "", "", `₹${subtotal.toLocaleString()}`]);
+        data.push(["Discount", "", "", `₹${discountAmt.toFixed(0)}`]);
+        data.push(["Total", "", "", `₹${total.toLocaleString()}`]);
+
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Quotation");
+        XLSX.writeFile(wb, `BNMedia_Quotation_${name.replace(/\s+/g, '_')}.xlsx`);
+      });
+
+      renderServices();
+      updateSummary();
+    </script>
+  </body>
+</html>

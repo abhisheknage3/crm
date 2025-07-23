@@ -1,0 +1,29 @@
+
+body {
+    font-family: 'Montserrat', sans-serif;
+  }
+  
+  .bg-main {
+    background-color: #f9fafb;
+  }
+  
+  .text-primary {
+    color: #1f2937; /* Gray-800 */
+  }
+  
+  .text-accent {
+    color: #e11d48; /* Red-600 */
+  }
+  
+  .bg-box {
+    background-color: #f3f4f6; /* Gray-100 */
+  }
+  
+  .bg-accent {
+    background-color: #e11d48; /* Red-600 */
+  }
+  
+  .font-mont {
+    font-family: 'Montserrat', sans-serif;
+  }
+  
